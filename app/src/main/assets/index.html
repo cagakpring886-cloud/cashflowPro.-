@@ -1,0 +1,280 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cashflow Pro</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#f3f6f8;color:#17202a}
+header{background:#133e35;color:white;padding:20px}
+header h1{margin:0;font-size:23px}
+header p{margin:6px 0 0;color:#d5e8e1}
+main{padding:15px;max-width:700px;margin:auto}
+.card{background:white;padding:16px;border-radius:14px;margin-bottom:14px;box-shadow:0 2px 8px #0001}
+.balance{background:#133e35;color:white}
+.balance small{opacity:.8}
+.balance h2{font-size:28px;margin:10px 0}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stats .card{margin:0}
+.green{color:#16834b}
+.red{color:#d63b3b}
+input,select,button{width:100%;padding:12px;margin:6px 0;border-radius:9px;border:1px solid #ddd;font-size:15px}
+button{background:#133e35;color:white;border:0;font-weight:bold}
+.secondary{background:#e5eee9;color:#133e35}
+.item{border-bottom:1px solid #eee;padding:12px 0}
+.item:last-child{border:0}
+.row{display:flex;justify-content:space-between;gap:10px}
+.row button{width:auto;padding:7px 10px}
+h3{margin-top:0}
+</style>
+</head>
+<body>
+
+<header>
+<h1>Cashflow Pro</h1>
+<p>Pencatatan keuangan sederhana</p>
+</header>
+
+<main>
+
+<div class="card balance">
+<small>Saldo saat ini</small>
+<h2 id="saldo">Rp0</h2>
+</div>
+
+<div class="stats">
+<div class="card">
+<small>Total pemasukan</small>
+<h3 class="green" id="masuk">Rp0</h3>
+</div>
+<div class="card">
+<small>Total pengeluaran</small>
+<h3 class="red" id="keluar">Rp0</h3>
+</div>
+</div>
+
+<div class="card">
+<h3>Tambah transaksi</h3>
+
+<input type="date" id="tanggal">
+
+<select id="jenis">
+<option value="masuk">Pemasukan</option>
+<option value="keluar">Pengeluaran</option>
+</select>
+
+<select id="kategori">
+<option>Modal</option>
+<option>Penjualan</option>
+<option>Gaji</option>
+<option>Belanja</option>
+<option>Makan</option>
+<option>Transportasi</option>
+<option>Pertanian</option>
+<option>Peternakan</option>
+<option>Lainnya</option>
+</select>
+
+<input id="ket" placeholder="Keterangan transaksi">
+<input id="jumlah" type="number" placeholder="Nominal rupiah">
+
+<select id="akun">
+<option>Kas</option>
+<option>Bank</option>
+<option>E-wallet</option>
+<option>Lainnya</option>
+</select>
+
+<button onclick="tambah()">Simpan transaksi</button>
+</div>
+
+<div class="card">
+<h3>Riwayat transaksi</h3>
+<div id="riwayat"></div>
+</div>
+
+<div class="card">
+<h3>Backup data</h3>
+<button class="secondary" onclick="backup()">Backup JSON</button>
+<button class="secondary" onclick="csv()">Ekspor CSV</button>
+<input type="file" id="file" accept=".json">
+<button class="secondary" onclick="restore()">Pulihkan backup</button>
+<button style="background:#c0392b" onclick="hapusSemua()">Hapus semua data</button>
+</div>
+
+</main>
+
+<script>
+let data=JSON.parse(localStorage.getItem("cashflow")||"[]");
+
+document.getElementById("tanggal").value=
+new Date().toISOString().slice(0,10);
+
+function rupiah(n){
+return "Rp"+Number(n).toLocaleString("id-ID");
+}
+
+function simpan(){
+localStorage.setItem("cashflow",JSON.stringify(data));
+render();
+}
+
+function tambah(){
+let t=document.getElementById("tanggal").value;
+let j=document.getElementById("jenis").value;
+let k=document.getElementById("kategori").value;
+let q=document.getElementById("ket").value;
+let a=Number(document.getElementById("jumlah").value);
+let ak=document.getElementById("akun").value;
+
+if(!t||!a||a<=0){
+alert("Tanggal dan nominal harus diisi.");
+return;
+}
+
+data.unshift({
+id:Date.now(),
+tanggal:t,
+jenis:j,
+kategori:k,
+ket:q,
+jumlah:a,
+akun:ak
+});
+
+document.getElementById("ket").value="";
+document.getElementById("jumlah").value="";
+simpan();
+}
+
+function render(){
+let m=data.filter(x=>x.jenis==="masuk")
+.reduce((a,x)=>a+x.jumlah,0);
+
+let k=data.filter(x=>x.jenis==="keluar")
+.reduce((a,x)=>a+x.jumlah,0);
+
+document.getElementById("masuk").textContent=rupiah(m);
+document.getElementById("keluar").textContent=rupiah(k);
+document.getElementById("saldo").textContent=rupiah(m-k);
+
+let r=document.getElementById("riwayat");
+r.innerHTML="";
+
+data.forEach(x=>{
+let d=document.createElement("div");
+d.className="item";
+
+let row=document.createElement("div");
+row.className="row";
+
+let left=document.createElement("div");
+left.innerHTML=
+"<b>"+escapeHTML(x.kategori)+"</b><br>"+
+escapeHTML(x.ket||"-")+"<br>"+
+"<small>"+x.tanggal+" · "+escapeHTML(x.akun)+"</small>";
+
+let right=document.createElement("div");
+right.style.textAlign="right";
+
+let val=document.createElement("div");
+val.className=x.jenis==="masuk"?"green":"red";
+val.textContent=(x.jenis==="masuk"?"+":"-")+rupiah(x.jumlah);
+
+let del=document.createElement("button");
+del.className="secondary";
+del.textContent="Hapus";
+del.onclick=()=>hapus(x.id);
+
+right.appendChild(val);
+right.appendChild(del);
+row.appendChild(left);
+row.appendChild(right);
+d.appendChild(row);
+r.appendChild(d);
+});
+
+if(data.length===0){
+r.textContent="Belum ada transaksi.";
+}
+}
+
+function escapeHTML(s){
+return String(s).replace(/[&<>"']/g,c=>({
+"&":"&amp;",
+"<":"&lt;",
+">":"&gt;",
+'"':"&quot;",
+"'":"&#39;"
+}[c]));
+}
+
+function hapus(id){
+if(confirm("Hapus transaksi ini?")){
+data=data.filter(x=>x.id!==id);
+simpan();
+}
+}
+
+function hapusSemua(){
+if(confirm("Hapus seluruh transaksi?")){
+data=[];
+simpan();
+}
+}
+
+function backup(){
+let b=new Blob([JSON.stringify(data,null,2)],
+{type:"application/json"});
+download(b,"cashflow-backup.json");
+}
+
+function csv(){
+let rows=[["Tanggal","Jenis","Kategori","Keterangan","Nominal","Akun"]];
+data.forEach(x=>rows.push([
+x.tanggal,x.jenis,x.kategori,x.ket,x.jumlah,x.akun
+]));
+
+let s=rows.map(r=>r.map(v=>
+'"'+String(v).replace(/"/g,'""')+'"'
+).join(",")).join("\n");
+
+download(new Blob(["\uFEFF"+s],{type:"text/csv"}),
+"cashflow.csv");
+}
+
+function download(blob,n){
+let u=URL.createObjectURL(blob);
+let a=document.createElement("a");
+a.href=u;
+a.download=n;
+a.click();
+setTimeout(()=>URL.revokeObjectURL(u),1000);
+}
+
+function restore(){
+let f=document.getElementById("file").files[0];
+if(!f){alert("Pilih file backup JSON.");return;}
+
+let rd=new FileReader();
+rd.onload=function(){
+try{
+let v=JSON.parse(rd.result);
+if(!Array.isArray(v))throw Error();
+data=v;
+simpan();
+alert("Backup berhasil dipulihkan.");
+}catch(e){
+alert("File backup tidak valid.");
+}
+};
+rd.readAsText(f);
+}
+
+render();
+</script>
+
+</body>
+</html>
