@@ -4,7 +4,7 @@
 
     <application
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
-        android:label="Cashflow Pro"
+        android:label="Cashflow Pro App"
         android:usesCleartextTraffic="true"
         android:allowBackup="true">
 
